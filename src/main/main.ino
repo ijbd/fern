@@ -11,16 +11,17 @@
 
 
 // parameters
-#define STEP_SIZE .04
-#define STEP_DELAY 600
-#define SERVO_DELAY 500
-#define SERVO_ANGLE_UP 140
-#define SERVO_ANGLE_DOWN 80
-#define X_MIN 0
-#define Y_MIN 0
-#define X_MAX 200
-#define Y_MAX 300
-#define STEP_BUFFER_CAPACITY 200
+#define STEP_SIZE 4 // mm * 100
+#define STEP_DELAY 600 // us
+#define SERVO_DELAY 500 // us
+#define SERVO_ANGLE_UP 140 // deg
+#define SERVO_ANGLE_DOWN 80 // deg
+#define X_MIN 0 // mm * 100
+#define Y_MIN 0 // mm * 100
+#define X_MAX 20000 // mm * 100
+#define Y_MAX 30000 // mm * 100
+#define STEP_BUFFER_CAPACITY 200 
+#define INSTR_BUFFER_CAPACITY 100
 
 // serial codes
 #define SERIAL_READY 1
@@ -51,7 +52,7 @@ class Fern{
       stepBufferSize = 0;
 
       // Send ready
-      Serial.println(SERIAL_READY);
+      Serial.write(SERIAL_READY);
     }
 
     ~Fern(){
@@ -63,35 +64,38 @@ class Fern{
     }
 
     void parseInstruction(){
-      String sdata = "";
-      byte ch;
-      bool received = false;
+      int opcode;
+      int arg0;
+      int arg1;
+      
+      // wait for instruction
+      while(Serial.available() < 5);
 
-      // Read in command
-      while(!received){
-        if(Serial.available() > 0){
-          ch = Serial.read();
+      // get opcode
+      opcode = Serial.read();
 
-          sdata += (char)ch;
-
-          if(ch == '\n'){
-            received = true;   
-          }
-          else if(sdata.length() >= 32){
-            error(SERIAL_ERROR_BAD_INSTR);
-          }
-        }      
+      // get arg0
+      for(int i = 0; i<2; ++i){
+        arg0 <<= 8;
+        arg0 |= Serial.read();
       }
 
-      //Serial.println(SERIAL_READY);
+      // get arg1
+      for(int i = 0; i<2; ++i){
+        arg1 <<= 8;
+        arg1 |= Serial.read();
+      }
+
+      Serial.write(SERIAL_READY);
 
       // Decode and execute
-      switch((char) sdata.charAt(0)){
-        case 'm':
-          parseMove(sdata);
+      switch(opcode){
+        case 0: // pen
+          if(arg1 == 1) penUp();
+          else penDown();
           break;
-        case 'p':
-          parsePen(sdata);
+        case 1: // move
+          moveTo(arg0,arg1);
           break;
         default:
           error(SERIAL_ERROR_BAD_INSTR);
@@ -145,46 +149,8 @@ class Fern{
   // Private Functions
   private:
 
-    void parseMove(String &instr){
-      // error handling and tokenizing
-      if(instr.charAt(1) != ' ') error(SERIAL_ERROR_BAD_INSTR);
-      int i = 2; 
-      while(instr.charAt(i) != ' ' && i < instr.length()) i++;
-      if(i >= instr.length()-1) error(SERIAL_ERROR_BAD_INSTR);
-
-      // get args
-      double xDest = instr.substring(2,i).toDouble();
-      double yDest = instr.substring(i+1).toDouble();
-
-      Serial.print("Move to ");
-      Serial.print(xDest);
-      Serial.print(' ');
-      Serial.println(yDest);
-      moveTo(xDest,yDest);
-    }
-    
-    void parsePen(String &instr){
-      // error handling and tokenizing
-      if(instr.charAt(1) != ' ') error(SERIAL_ERROR_BAD_INSTR);
-      if(instr.charAt(3) != '\n') error(SERIAL_ERROR_BAD_INSTR);
-
-      // get arg and execute
-      switch(instr.charAt(2)){
-        case 'u':
-          Serial.println("Pen up!");
-          penUp();
-          break;
-        case 'd':
-          Serial.println("Pen up!");
-          penDown();
-          break;
-        default:
-          error(SERIAL_ERROR_BAD_INSTR);
-      }  
-    }
-    
     void error(int errorCode){
-      Serial.println(errorCode);
+      Serial.write(errorCode);
       while(1);
     }
   
@@ -233,20 +199,20 @@ class Fern{
         if(xStepBuffer[i]){
           digitalWrite(X_STEP_PIN,HIGH);
           x += dx;
+          delayMicroseconds(STEP_DELAY);
+          digitalWrite(X_STEP_PIN,LOW);
+          delayMicroseconds(STEP_DELAY);
         }
 
         // check y
         if(yStepBuffer[i]){
           digitalWrite(Y_STEP_PIN,HIGH);
           y += dy;
+          delayMicroseconds(STEP_DELAY);
+          digitalWrite(Y_STEP_PIN,LOW);
+          delayMicroseconds(STEP_DELAY);
         }
 
-        // end step
-        delayMicroseconds(STEP_DELAY);
-        digitalWrite(X_STEP_PIN,LOW);
-        digitalWrite(Y_STEP_PIN,LOW);
-        delayMicroseconds(STEP_DELAY);
-        
       }
 
       // reset buffer
@@ -333,7 +299,7 @@ class Fern{
 void setup() {
 
   // Serial 
-  Serial.begin(9600);
+  Serial.begin(115200);
   while(!Serial);
 
   // Inputs
@@ -348,6 +314,24 @@ void setup() {
   
   // Instantiate
   Fern f;
+
+  bool dir = FORWARD;
+  while(1){
+    delay(1000);
+
+    digitalWrite(X_DIR_PIN, dir);
+    digitalWrite(Y_DIR_PIN, dir);
+    delayMicroseconds(STEP_DELAY);
+    
+    for(int i = 0; i < 1000; ++i){
+        digitalWrite(X_STEP_PIN,HIGH);
+        delayMicroseconds(STEP_DELAY);
+        digitalWrite(X_STEP_PIN,LOW);
+        delayMicroseconds(STEP_DELAY);
+    }
+
+    dir = !dir;
+  }
 
   while(1){
     f.parseInstruction();
