@@ -1,4 +1,6 @@
 #include <Servo.h>
+#include <AccelStepper.h>
+#include <MultiStepper.h>
 
 // pins
 #define X_DIR_PIN 2
@@ -9,336 +11,195 @@
 #define X_BUMP_PIN 7
 #define Y_BUMP_PIN 8
 
-
 // parameters
-#define STEP_SIZE 4 // mm * 100
-#define STEP_DELAY 600 // us
+#define INVERT_X_DIR false
+#define INVERT_Y_DIR false
+#define STEPPER_STEP_SIZE .04 // mm
+#define STEPPER_MAX_SPEED 1200
 #define SERVO_DELAY 500 // us
-#define SERVO_ANGLE_UP 140 // deg
-#define SERVO_ANGLE_DOWN 80 // deg
-#define X_MIN 0 // mm * 100
-#define Y_MIN 0 // mm * 100
-#define X_MAX 20000 // mm * 100
-#define Y_MAX 30000 // mm * 100
-#define STEP_BUFFER_CAPACITY 200 
-#define INSTR_BUFFER_CAPACITY 100
-
-// serial codes
-#define SERIAL_READY 1
-#define SERIAL_ERROR_BAD_INSTR 2
-
-// other macros for readability
-#define FORWARD 0
-#define REVERSE 1
-
+#define SERVO_ANGLE_UP 60 // deg
+#define SERVO_ANGLE_DOWN 0 // deg
+#define X_MIN 0 // steps
+#define Y_MIN 0 // steps
+#define X_MAX 5000 // steps
+#define Y_MAX 7500 // steps
 
 class Fern{
-  // Public Functions
   public:
-    Fern(){
-      // Attach pen
-      pen.attach(SERVO_PIN);
-      delay(1000);
+  Fern(){
+    Serial.println("%% Instantiating Fern...");
 
-      // Lift pen
-      penUp();
-
-      // Go home
-      moveHome();
-
-      // Allocate buffer space
-      xStepBuffer = new bool[STEP_BUFFER_CAPACITY];
-      yStepBuffer = new bool[STEP_BUFFER_CAPACITY];
-      stepBufferSize = 0;
-
-      // Send ready
-      Serial.write(SERIAL_READY);
-    }
-
-    ~Fern(){
-      penUp();
-      moveTo(0,30);
-      moveTo(30,30);
-      delete[] xStepBuffer;
-      delete[] yStepBuffer;
-    }
-
-    void parseInstruction(){
-      int opcode;
-      int arg0;
-      int arg1;
-      
-      // wait for instruction
-      while(Serial.available() < 5);
-
-      // get opcode
-      opcode = Serial.read();
-
-      // get arg0
-      for(int i = 0; i<2; ++i){
-        arg0 <<= 8;
-        arg0 |= Serial.read();
-      }
-
-      // get arg1
-      for(int i = 0; i<2; ++i){
-        arg1 <<= 8;
-        arg1 |= Serial.read();
-      }
-
-      Serial.write(SERIAL_READY);
-
-      // Decode and execute
-      switch(opcode){
-        case 0: // pen
-          if(arg1 == 1) penUp();
-          else penDown();
-          break;
-        case 1: // move
-          moveTo(arg0,arg1);
-          break;
-        default:
-          error(SERIAL_ERROR_BAD_INSTR);
-      }
-    }
-
-    void penUp(){
-      pen.write(SERVO_ANGLE_UP);
-      delayMicroseconds(SERVO_DELAY);
-    }
-
-    void penDown(){
-      pen.write(SERVO_ANGLE_DOWN);
-      delayMicroseconds(SERVO_DELAY);
-    }
-
-    void moveTo(double xDest, double yDest){
-      xDest = min(max(xDest,X_MIN),X_MAX);
-      yDest = min(max(yDest,Y_MIN),Y_MAX);
-
-      // Initialize Bessenham variables
-      int x0 = int(x/STEP_SIZE);
-      int x1 = int(xDest/STEP_SIZE);
-      int y0 = int(y/STEP_SIZE);
-      int y1 = int(yDest/STEP_SIZE);
-      
-      xDir = (x1 >= x0);
-      yDir = (y1 >= y0);
-      
-      // Begin Bessenham algorithm
-      if(abs(y1 - y0) < abs(x1 - x0)){
-        if(!xDir){          
-          plotLineLow(x1, y1, x0, y0);
-        }
-        else{
-          plotLineLow(x0, y0, x1, y1);
-        }
-      }
-      else{
-        if(!yDir){
-          plotLineHigh(x1, y1, x0, y0);
-        }
-        else{
-          plotLineHigh(x0, y0, x1, y1);
-        }
-      }
-       
-      moveMotors();
-    }
-  
-  // Private Functions
-  private:
-
-    void error(int errorCode){
-      Serial.write(errorCode);
-      while(1);
-    }
-  
-    void moveHome(){
-      // Go to x-zero
-      digitalWrite(X_DIR_PIN,REVERSE);
-      delayMicroseconds(STEP_DELAY);
-      
-      while(digitalRead(X_BUMP_PIN)){
-        digitalWrite(X_STEP_PIN,HIGH);
-        delayMicroseconds(STEP_DELAY);
-        digitalWrite(X_STEP_PIN,LOW);
-        delayMicroseconds(STEP_DELAY);
-      }
-
-      // Go to y-zero
-      digitalWrite(Y_DIR_PIN,REVERSE);
-      delayMicroseconds(STEP_DELAY);
-      
-      while(digitalRead(Y_BUMP_PIN)){
-        digitalWrite(Y_STEP_PIN,HIGH);
-        delayMicroseconds(STEP_DELAY);
-        digitalWrite(Y_STEP_PIN,LOW);
-        delayMicroseconds(STEP_DELAY);
-      }
-
-      // set postion
-      x = 0;
-      y = 0;
-    }
-
-    void moveMotors(){
-
-      // Set direction
-      double dx = (xDir) ? STEP_SIZE : -STEP_SIZE;
-      double dy = (yDir) ? STEP_SIZE : -STEP_SIZE;
-      digitalWrite(X_DIR_PIN,(xDir) ? FORWARD : REVERSE);
-      digitalWrite(Y_DIR_PIN,(yDir) ? FORWARD : REVERSE);
-
-      delayMicroseconds(STEP_DELAY);
-
-      // step
-      for(int i = 0; i < stepBufferSize; ++i){
-
-        // check x
-        if(xStepBuffer[i]){
-          digitalWrite(X_STEP_PIN,HIGH);
-          x += dx;
-          delayMicroseconds(STEP_DELAY);
-          digitalWrite(X_STEP_PIN,LOW);
-          delayMicroseconds(STEP_DELAY);
-        }
-
-        // check y
-        if(yStepBuffer[i]){
-          digitalWrite(Y_STEP_PIN,HIGH);
-          y += dy;
-          delayMicroseconds(STEP_DELAY);
-          digitalWrite(Y_STEP_PIN,LOW);
-          delayMicroseconds(STEP_DELAY);
-        }
-
-      }
-
-      // reset buffer
-      stepBufferSize = 0;
-    }
-
-    // Bessenham Algorithm
-    void plotLineLow(int x0, int y0, int x1, int y1){
-      int dx = x1 - x0;
-      int dy = y1 - y0;
-      int yi = 1;
-      
-      if(dy < 0){
-        yi = -1;
-        dy = -dy;
-      }
-      
-      int D = (2 * dy) - dx;
-      int y_c = y0;
-      
-      for(int x_c = x0; x_c < x1; x_c++){
-        if(D > 0){
-          y_c += yi;
-          D = D + (2 * (dy - dx));
-          yStepBuffer[stepBufferSize] = 1;
-        }
-        else{
-          D = D + 2*dy;
-          yStepBuffer[stepBufferSize] = 0;
-        }
-
-        // step buffers
-          xStepBuffer[stepBufferSize++] = 1;
-
-        if(stepBufferSize == STEP_BUFFER_CAPACITY){
-          moveMotors();
-        }
-      }
-    }
-
-    // Bessenham Algorithm
-    void plotLineHigh(int x0, int y0, int x1, int y1){
-      int dx = x1 - x0;
-      int dy = y1 - y0;
-      int xi = 1;
-      if(dx < 0){
-          xi = -1;
-          dx = -dx;
-      }
-      int D = (2 * dx) - dy;
-      int x_c = x0;
-  
-      for(int y_c = y0; y_c < y1; y_c++){
-        if(D > 0){
-          x_c += xi;
-          D = D + (2 * (dx - dy));
-          xStepBuffer[stepBufferSize] = 1;
-        }
-        else{
-          D = D + 2*dx;
-          xStepBuffer[stepBufferSize] = 0;
-        }
-
-        // always step y
-        yStepBuffer[stepBufferSize++] = 1;
-
-        if(stepBufferSize == STEP_BUFFER_CAPACITY){
-          moveMotors();
-        }
-      }
-    }
+    // attach servo
+    pen.attach(SERVO_PIN);
+    penUp();
     
-    Servo pen; 
-    double x;
-    double y;
-    int stepBufferSize;
-    bool * xStepBuffer;
-    bool * yStepBuffer;
-    bool xDir;
-    bool yDir;
-      
-};
+    // instantiate motors
+    xMotor = AccelStepper(AccelStepper::DRIVER,X_STEP_PIN,X_DIR_PIN);
+    yMotor = AccelStepper(AccelStepper::DRIVER,Y_STEP_PIN,Y_DIR_PIN);
 
-void setup() {
+    // limit speed
+    xMotor.setMaxSpeed(STEPPER_MAX_SPEED);
+    yMotor.setMaxSpeed(STEPPER_MAX_SPEED);
 
-  // Serial 
-  Serial.begin(115200);
-  while(!Serial);
+    // invert pins (if necessary)
+    xMotor.setPinsInverted(INVERT_X_DIR);
+    yMotor.setPinsInverted(INVERT_Y_DIR);
 
-  // Inputs
-  pinMode(X_BUMP_PIN, INPUT);
-  pinMode(Y_BUMP_PIN, INPUT);
-  
-  // Outputs
-  pinMode(X_STEP_PIN, OUTPUT);
-  pinMode(X_DIR_PIN, OUTPUT);
-  pinMode(Y_STEP_PIN, OUTPUT);
-  pinMode(Y_DIR_PIN, OUTPUT);
-  
-  // Instantiate
-  Fern f;
-
-  bool dir = FORWARD;
-  while(1){
-    delay(1000);
-
-    digitalWrite(X_DIR_PIN, dir);
-    digitalWrite(Y_DIR_PIN, dir);
-    delayMicroseconds(STEP_DELAY);
-    
-    for(int i = 0; i < 1000; ++i){
-        digitalWrite(X_STEP_PIN,HIGH);
-        delayMicroseconds(STEP_DELAY);
-        digitalWrite(X_STEP_PIN,LOW);
-        delayMicroseconds(STEP_DELAY);
+    // attach motors
+    if(!motors.addStepper(xMotor)){
+      Serial.println("%% ERROR: Failed to attach x motor.");
+      error();
     }
+    if(!motors.addStepper(yMotor)){
+      Serial.println("%% ERROR: Failed to attach y motor.");
+      error();
+    }     
 
-    dir = !dir;
+    // calibration
+    goHome();
+
+    // initialize destination array
+        
   }
 
+  void penUp(){
+    if(!penState){
+      pen.write(SERVO_ANGLE_UP);
+      penState = HIGH;
+      delayMicroseconds(SERVO_DELAY);
+    }
+  }
+
+  void penDown(){
+    if(penState){
+      pen.write(SERVO_ANGLE_DOWN);
+      penState = LOW;
+      delayMicroseconds(SERVO_DELAY);
+    }
+  }
+
+  void goHome(){
+    penUp();
+    
+    while(LOW && digitalRead(X_BUMP_PIN)){
+      xMotor.move(-1);
+      while(xMotor.run());
+    }
+
+    xMotor.setCurrentPosition(0);
+    delay(1000);
+
+    while(LOW && digitalRead(Y_BUMP_PIN)){
+      yMotor.move(-1);
+      while(yMotor.run());
+    }
+
+    yMotor.setCurrentPosition(0);
+    delay(1000);
+
+    Serial.println("%% Found home position...");
+  }
+  
+  void moveToPos(int x, int y){
+    Serial.println("%% Moving to position...");
+
+    // initialize dest
+    long dest[2] = {x,y};
+    Serial.println(dest[0]);
+    Serial.println(dest[1]);
+    motors.moveTo(dest);
+    while(motors.run());
+  }
+
+  void rect(int x1, int y1, int x2, int y2){
+
+    Serial.println("%% Drawing rectangle...");
+    
+    // if current position is not starting position, raise pen and move
+    if(x1 != xMotor.currentPosition() || y1 != yMotor.currentPosition()){
+      penUp();
+      moveToPos(x1,y1);
+      penDown();
+    }
+
+    // draw rectangle
+    moveToPos(x1,y2);
+    moveToPos(x2,y2);
+    moveToPos(x2,y1);
+    moveToPos(x1,y1);
+     
+  }
+
+  void line(int x1, int y1, int x2, int y2){
+    
+    Serial.println("%% Drawing line...");
+    
+    // if current position is not starting position, raise pen and move
+    if(x1 != xMotor.currentPosition() || y1 != yMotor.currentPosition()){
+      penUp();
+      moveToPos(x1,y1);
+      penDown();
+    }
+
+    // draw line
+    moveToPos(x2,y2);
+  }
+
+  void circle(int xc, int yc, int r){
+
+    Serial.println("%% Drawing circle...");
+
+    // if current position is not starting position, raise pen and move
+    if(xc+r != xMotor.currentPosition() || yc != yMotor.currentPosition()){
+      penUp();
+      moveToPos(xc,yc);
+      penDown();
+    }
+
+    // draw circle
+    int * x = new int[100];
+    int * y = new int[100];
+    for(int theta = 0; theta < 100; ++theta){
+       x[theta] = xc+r*cos(theta/180*3.14);
+       y[theta] = yc+r*sin(theta/180*3.14);
+    }
+  }
+
+  private:
+
+  int mmToSteps(double mm){
+    return mm/STEPPER_STEP_SIZE;
+  }
+  
+  void error(){
+    while(1);
+  }
+  
+  private:  
+  Servo pen;
+  AccelStepper xMotor;
+  AccelStepper yMotor;
+  MultiStepper motors;
+  bool penState; // track pen state for some optimizations
+};
+
+void setup(){
+
+  // serial setup
+  Serial.begin(115200);
+  
+  // instantiate
+  Fern f;
+
   while(1){
-    f.parseInstruction();
+    f.rect(0,0,300,300);
+    delay(1000);
+
+    f.circle(100,100,50);
+    delay(1000);
   }
 }
 
-
 void loop() {
-
+ 
 }
