@@ -12,26 +12,23 @@
 #define Y_BUMP_PIN 8
 
 // parameters
-#define INVERT_X_DIR false
-#define INVERT_Y_DIR false
+#define INVERT_X_DIR true
+#define INVERT_Y_DIR true
 #define STEPPER_STEP_SIZE .04 // mm
-#define STEPPER_MAX_SPEED 1200
+#define STEPPER_MAX_SPEED 950 // steps/sec
 #define SERVO_DELAY 500 // us
 #define SERVO_ANGLE_UP 60 // deg
 #define SERVO_ANGLE_DOWN 0 // deg
-#define X_MIN 0 // steps
-#define Y_MIN 0 // steps
 #define X_MAX 5000 // steps
 #define Y_MAX 7500 // steps
 
 class Fern{
   public:
   Fern(){
-    Serial.println("%% Instantiating Fern...");
-
+    
     // attach servo
     pen.attach(SERVO_PIN);
-    penUp();
+    raisePen();
     
     // instantiate motors
     xMotor = AccelStepper(AccelStepper::DRIVER,X_STEP_PIN,X_DIR_PIN);
@@ -47,11 +44,9 @@ class Fern{
 
     // attach motors
     if(!motors.addStepper(xMotor)){
-      Serial.println("%% ERROR: Failed to attach x motor.");
       error();
     }
     if(!motors.addStepper(yMotor)){
-      Serial.println("%% ERROR: Failed to attach y motor.");
       error();
     }     
 
@@ -62,7 +57,7 @@ class Fern{
         
   }
 
-  void penUp(){
+  void raisePen(){
     if(!penState){
       pen.write(SERVO_ANGLE_UP);
       penState = HIGH;
@@ -70,7 +65,7 @@ class Fern{
     }
   }
 
-  void penDown(){
+  void lowerPen(){
     if(penState){
       pen.write(SERVO_ANGLE_DOWN);
       penState = LOW;
@@ -79,98 +74,99 @@ class Fern{
   }
 
   void goHome(){
-    penUp();
-    
-    while(LOW && digitalRead(X_BUMP_PIN)){
-      xMotor.move(-1);
-      while(xMotor.run());
+    raisePen();
+
+    // reset orientation
+    xMotor.setCurrentPosition(10000);
+    yMotor.setCurrentPosition(0);
+
+    long dest[2] = {0,0};
+
+    // move x axis until bump
+    motors.moveTo(dest);
+    while(digitalRead(X_BUMP_PIN)){
+      motors.run();
     }
 
     xMotor.setCurrentPosition(0);
     delay(1000);
 
-    while(LOW && digitalRead(Y_BUMP_PIN)){
-      yMotor.move(-1);
-      while(yMotor.run());
+    // move y axis until bump
+    yMotor.setCurrentPosition(10000);
+    motors.moveTo(dest);
+    while(digitalRead(Y_BUMP_PIN)){
+      motors.run();
     }
 
     yMotor.setCurrentPosition(0);
     delay(1000);
-
-    Serial.println("%% Found home position...");
   }
   
-  void moveToPos(int x, int y){
-    Serial.println("%% Moving to position...");
+  void movePenTo(int x, int y){
 
     // initialize dest
     long dest[2] = {x,y};
     Serial.println(dest[0]);
     Serial.println(dest[1]);
     motors.moveTo(dest);
-    while(motors.run());
+    motors.runSpeedToPosition();
   }
 
-  void rect(int x1, int y1, int x2, int y2){
+  void parseSerial(){
+    /* Instruction set sent in 3 bytes 
+     * bit 0 -> blank
+     * bit 1 -> opcode: 0 for pen raise/lower, 1 for pen move
+     * bits 2-12 -> field 1: null for pen raise/lower, destination x (in mm) / .16 for pen move
+     * bits 13-23 -> field 2: null for pen raise/lower, destination y (in mm) / .16 for pen move
+     */
 
-    Serial.println("%% Drawing rectangle...");
+    Serial.write(1);
     
-    // if current position is not starting position, raise pen and move
-    if(x1 != xMotor.currentPosition() || y1 != yMotor.currentPosition()){
-      penUp();
-      moveToPos(x1,y1);
-      penDown();
-    }
+    int opcode;
+    int field1;
+    int field2;
 
-    // draw rectangle
-    moveToPos(x1,y2);
-    moveToPos(x2,y2);
-    moveToPos(x2,y1);
-    moveToPos(x1,y1);
-     
-  }
-
-  void line(int x1, int y1, int x2, int y2){
+    // opcode
+    while(!Serial.available());
+    opcode = Serial.read();
     
-    Serial.println("%% Drawing line...");
+    // field 1 most significant byte
+    while(!Serial.available());
+    field1 = Serial.read();
+    field1 <<= 8;
+
+    // field 1 least significant byte
+    while(!Serial.available());
+    field1 += Serial.read();
+
+    // field 2 most significant byte
+    while(!Serial.available());
+    field2 = Serial.read();
+    field2 <<= 8;
+
+    // field 2 least significant byte
+    while(!Serial.available());
+    field2 += Serial.read();
     
-    // if current position is not starting position, raise pen and move
-    if(x1 != xMotor.currentPosition() || y1 != yMotor.currentPosition()){
-      penUp();
-      moveToPos(x1,y1);
-      penDown();
+    // move 
+    if(opcode){
+      int x = field1 % X_MAX;
+      int y = field2 % Y_MAX;
+
+      movePenTo(x,y);
     }
-
-    // draw line
-    moveToPos(x2,y2);
-  }
-
-  void circle(int xc, int yc, int r){
-
-    Serial.println("%% Drawing circle...");
-
-    // if current position is not starting position, raise pen and move
-    if(xc+r != xMotor.currentPosition() || yc != yMotor.currentPosition()){
-      penUp();
-      moveToPos(xc,yc);
-      penDown();
-    }
-
-    // draw circle
-    int * x = new int[100];
-    int * y = new int[100];
-    for(int theta = 0; theta < 100; ++theta){
-       x[theta] = xc+r*cos(theta/180*3.14);
-       y[theta] = yc+r*sin(theta/180*3.14);
+    // pen
+    else{
+      if(field2){
+        raisePen();
+      }
+      else{
+        lowerPen();
+      }
     }
   }
 
   private:
-
-  int mmToSteps(double mm){
-    return mm/STEPPER_STEP_SIZE;
-  }
-  
   void error(){
     while(1);
   }
@@ -192,12 +188,9 @@ void setup(){
   Fern f;
 
   while(1){
-    f.rect(0,0,300,300);
-    delay(1000);
-
-    f.circle(100,100,50);
-    delay(1000);
+    f.parseSerial();
   }
+
 }
 
 void loop() {
