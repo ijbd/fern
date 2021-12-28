@@ -3,12 +3,12 @@ Fern is a bottom-up CNC drawing machine made, with love, in Ann Arbor, Michigan.
 The goal of this project is to make interesting *cyber-physical* artpieces in collaboration with talented physical artists.
 
 ## Table of contents
-- [Technologies](#technologies)
+- [Requirements](#requirements)
 - [File Descriptions](#file-descriptions)
 - [Example](#examples)
 - [Gallery](#gallery)
 
-## Technologies
+## Requirements
 
 Hardware:
 
