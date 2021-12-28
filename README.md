@@ -17,7 +17,7 @@ Hardware:
 - 9g Microservo
 - Pololu A4988 Stepper Drivers
 - Pololu 16.3mm Snap-Action Switch
-- Custom PCB & 3D Printed Joints (in 'parts')
+- Custom PCB & 3D Printed Joints (see [parts](parts))
 
 Software:
 
