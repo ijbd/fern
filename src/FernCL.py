@@ -70,6 +70,22 @@ class FernCL:
                             # write
                             s.write(encoding)
 
+                    # end in neutral position
+                    while(s.read() != b'\x01'):
+                        pass
+
+                    # write
+                    s.write(self.encodeRaise(1))
+
+                    # end in neutral position
+                    while(s.read() != b'\x01'):
+                        pass
+
+                    # write
+                    s.write(self.encodeMove(150,50))
+
+                    
+
     @staticmethod
     def parseLine(line):
         args = line.split(' ')
@@ -78,27 +94,27 @@ class FernCL:
         # get list of instructions
         encodingList = []
         if cmd == 'M':
-            x = int(args[1])
-            y = int(args[2])
+            x = float(args[1])
+            y = float(args[2])
             encodingList.append(FernCL.encodeMove(x,y)) # move to location
         elif cmd == 'P':
             up = args[1] == '1'
             encodingList.append(FernCL.encodeRaise(up)) # raise/lower pen
         elif cmd == 'L':
-            x1 = int(args[1])
-            y1 = int(args[2])
-            x2 = int(args[3])
-            y2 = int(args[4])
+            x1 = float(args[1])
+            y1 = float(args[2])
+            x2 = float(args[3])
+            y2 = float(args[4])
             encodingList.append(FernCL.encodeRaise(1))              # raise pen
             encodingList.append(FernCL.encodeMove(x1,y1)) # move to starting point
             encodingList.append(FernCL.encodeRaise(0))              # lower pen
             encodingList.append(FernCL.encodeMove(x2,y2)) # move to finishing point
             encodingList.append(FernCL.encodeRaise(1))              # raise pen 
         elif cmd == 'R':
-            x1 = int(args[1])
-            y1 = int(args[2])
-            x2 = int(args[3])
-            y2 = int(args[4])
+            x1 = float(args[1])
+            y1 = float(args[2])
+            x2 = float(args[3])
+            y2 = float(args[4])
             encodingList.append(FernCL.encodeRaise(1))              # raise pen
             encodingList.append(FernCL.encodeMove(x1,y1)) # move to starting point
             encodingList.append(FernCL.encodeRaise(0))              # lower pen
@@ -108,9 +124,9 @@ class FernCL:
             encodingList.append(FernCL.encodeMove(x1,y1))
             encodingList.append(FernCL.encodeRaise(1))              # raise pen 
         elif cmd == 'C':
-            xc = int(args[1])
-            yc = int(args[2])
-            r =  int(args[3])
+            xc = float(args[1])
+            yc = float(args[2])
+            r =  float(args[3])
 
             # go to starting point
             encodingList.append(FernCL.encodeRaise(1))
@@ -130,7 +146,7 @@ class FernCL:
 
     @staticmethod
     def encodeMove(x, y):
-        return FernCL.encode(1,x//.04,y//.04)
+        return FernCL.encode(1,x*10,y*10) # encode in 100 micrometers
 
     @staticmethod
     def encodeRaise(up):

@@ -1,2 +1,5 @@
 prints/
 images/
+src/__pycache__/
+src/tmp.svg
+src/sketchPadTemplate.py

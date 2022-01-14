@@ -5,22 +5,28 @@
 // pins
 #define X_DIR_PIN 2
 #define X_STEP_PIN 3
-#define Y_DIR_PIN 4
-#define Y_STEP_PIN 5
-#define SERVO_PIN 6
-#define X_BUMP_PIN 7
-#define Y_BUMP_PIN 8
+#define X_MS1 5
+#define X_MS2 4
+#define Y_DIR_PIN 6
+#define Y_STEP_PIN 7
+#define Y_MS1 9
+#define Y_MS2 8
+#define SERVO_PIN 10
+#define X_BUMP_PIN 11
+#define Y_BUMP_PIN 12
 
 // parameters
 #define INVERT_X_DIR true
 #define INVERT_Y_DIR true
-#define STEPPER_STEP_SIZE .04 // mm
-#define STEPPER_MAX_SPEED 950 // steps/sec
-#define SERVO_DELAY 500 // us
-#define SERVO_ANGLE_UP 60 // deg
+#define STEPS_PER_100_UM 20 // steps
+#define STEPPER_MAX_SPEED 3000 // steps/sec
+#define SERVO_DELAY 1500 // us
+#define SERVO_ANGLE_UP 30 // deg
 #define SERVO_ANGLE_DOWN 0 // deg
-#define X_MAX 5000 // steps
-#define Y_MAX 7500 // steps
+#define X_MAX 2000 // 100 um
+#define Y_MAX 3000 // 100 um
+#define X_OFFSET 20000 // steps
+#define Y_OFFSET 30000 // steps
 
 class Fern{
   public:
@@ -28,6 +34,7 @@ class Fern{
     
     // attach servo
     pen.attach(SERVO_PIN);
+    penState = 0;
     raisePen();
     
     // instantiate motors
@@ -42,6 +49,17 @@ class Fern{
     xMotor.setPinsInverted(INVERT_X_DIR);
     yMotor.setPinsInverted(INVERT_Y_DIR);
 
+    // 1/8 microstepping
+    pinMode(X_MS1,OUTPUT);
+    pinMode(X_MS2,OUTPUT);
+    pinMode(Y_MS1,OUTPUT);
+    pinMode(Y_MS2,OUTPUT);
+    
+    digitalWrite(X_MS1,HIGH);
+    digitalWrite(X_MS2,HIGH);
+    digitalWrite(Y_MS1,HIGH);
+    digitalWrite(Y_MS2,HIGH);
+    
     // attach motors
     if(!motors.addStepper(xMotor)){
       error();
@@ -77,28 +95,34 @@ class Fern{
     raisePen();
 
     // reset orientation
-    xMotor.setCurrentPosition(10000);
-    yMotor.setCurrentPosition(0);
+    xMotor.setCurrentPosition(0);
+    yMotor.setCurrentPosition(-Y_OFFSET);
 
-    long dest[2] = {0,0};
+    long dest[2] = {-X_OFFSET,-Y_OFFSET};
 
     // move x axis until bump
     motors.moveTo(dest);
     while(digitalRead(X_BUMP_PIN)){
-      motors.run();
+      if(!motors.run()){
+        xMotor.setCurrentPosition(0);
+        motors.moveTo(dest);
+      }
     }
 
-    xMotor.setCurrentPosition(0);
+    xMotor.setCurrentPosition(-X_OFFSET);
     delay(1000);
 
     // move y axis until bump
-    yMotor.setCurrentPosition(10000);
+    yMotor.setCurrentPosition(0);
     motors.moveTo(dest);
     while(digitalRead(Y_BUMP_PIN)){
-      motors.run();
+      if(!motors.run()){
+        yMotor.setCurrentPosition(0);
+        motors.moveTo(dest);
+      }
     }
 
-    yMotor.setCurrentPosition(0);
+    yMotor.setCurrentPosition(-Y_OFFSET);
     delay(1000);
   }
   
@@ -106,8 +130,6 @@ class Fern{
 
     // initialize dest
     long dest[2] = {x,y};
-    Serial.println(dest[0]);
-    Serial.println(dest[1]);
     motors.moveTo(dest);
     motors.runSpeedToPosition();
   }
@@ -150,11 +172,16 @@ class Fern{
     
     // move 
     if(opcode){
-      int x = field1 % X_MAX;
-      int y = field2 % Y_MAX;
+      int x = (field1) % X_MAX; // 100 um
+      int y = (field2) % Y_MAX; // 100 um
+
+      // center
+      x = (x - X_MAX/2) * STEPS_PER_100_UM;
+      y = (y - Y_MAX/2) * STEPS_PER_100_UM;
 
       movePenTo(x,y);
     }
+    
     // pen
     else{
       if(field2){
@@ -180,10 +207,9 @@ class Fern{
 };
 
 void setup(){
-
   // serial setup
   Serial.begin(115200);
-  
+
   // instantiate
   Fern f;
 
