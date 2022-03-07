@@ -19,6 +19,17 @@ class FernArtist:
 		# setup
 		self.c = open(filename,'w')
 
+	def move(self,x,y):
+		instruction = ' '.join(['M',
+						str(round(x*self.width+self.offsetX,1)),
+						str(round(y*self.height+self.offsetY,1))])
+		self.c.write(instruction+'\n')
+
+	def pen(self,up):
+		instruction = ' '.join(['P',
+						str(up)])
+		self.c.write(instruction+'\n')
+
 	def line(self,x1,y1,x2,y2):
 		instruction = ' '.join(['L',
 						str(round(x1*self.width+self.offsetX,1)),
@@ -44,7 +55,10 @@ class FernArtist:
 		self.c.write(instruction+'\n')
 	
 	def arc(self,xc,yc,r,ts,te):
-		pass
-
-	def save(self,outputFile=None):
-		pass
+		instruction = ' '.join(['A',
+						str(round(xc*self.width+self.offsetX,1)),
+						str(round(yc*self.height+self.offsetY,1)),
+						str(round(r,1)),
+						str(ts),
+						str(te)])
+		self.c.write(instruction+'\n')

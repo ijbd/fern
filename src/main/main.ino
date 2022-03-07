@@ -21,14 +21,14 @@
 #define MOTOR_B_INVERT false
 #define SERVO_PIN 10
 #define SERVO_ANGLE_DOWN 0
-#define SERVO_ANGLE_UP 30
-#define SERVO_DELAY 1500
+#define SERVO_ANGLE_UP 60
+#define SERVO_DELAY_MS 250
 #define BUMPER_X_PIN 11
 #define BUMPER_Y_PIN 12
-#define STEP_MAX_SPEED 600 
-#define STEPS_PER_MM 50 
-#define X_LIM_STEPS 12500
-#define Y_LIM_STEPS 15000
+#define STEP_MAX_SPEED 400
+#define STEPS_PER_MM 25 
+#define X_LIM_STEPS 6250
+#define Y_LIM_STEPS 7500
 
 // struct
 class Fern{
@@ -51,9 +51,9 @@ public:
     motor_b = AccelStepper(AccelStepper::DRIVER,MOTOR_B_STEP_PIN, MOTOR_B_DIR_PIN);
   
     // set microstep pins
-    digitalWrite(MOTOR_A_MS_1_PIN, HIGH);
+    digitalWrite(MOTOR_A_MS_1_PIN, LOW);
     digitalWrite(MOTOR_A_MS_2_PIN, HIGH);
-    digitalWrite(MOTOR_B_MS_1_PIN, HIGH);
+    digitalWrite(MOTOR_B_MS_1_PIN, LOW);
     digitalWrite(MOTOR_B_MS_2_PIN, HIGH);
   
     // limit speed
@@ -111,7 +111,7 @@ public:
     if(!pen_state){
       pen.write(SERVO_ANGLE_UP);
       pen_state = HIGH;
-      delayMicroseconds(SERVO_DELAY);
+      delay(SERVO_DELAY_MS);
     }
   }
 
@@ -119,36 +119,43 @@ public:
     if(pen_state){
       pen.write(SERVO_ANGLE_DOWN);
       pen_state = LOW;
-      delayMicroseconds(SERVO_DELAY);
+      delay (SERVO_DELAY_MS);
     }
   }
 
   void parse_serial(){
 
     // send ready
-    //Serial.write('R');
+    Serial.write('R');
     
-    // wait for incoming command 
+    // wait for incoming instruction
     while(!Serial.available());
 
-    // read opcode
-    char opcode = Serial.read();
+    // load fields
+    char opcode;
+    char field1[6];
+    char field2[6];
     
+    opcode = Serial.read();
+    Serial.readBytes(field1,6);
+    Serial.readBytes(field2,6);
+
+    // execute
     switch(opcode){
       case 'M':
-        parse_move();
+        parse_move(field1, field2);
         break;
       case 'P':
-        parse_pen();
+        parse_pen(field1);
         break;
     }
   }
 
-  void parse_move(){
+  void parse_move(char * field1, char * field2){
 
     // read arguments
-    float x_mm_dest = Serial.parseFloat();
-    float y_mm_dest = Serial.parseFloat();
+    float x_mm_dest = atof(field1);
+    float y_mm_dest = atof(field2);
 
     // convert to steps
     int x_dest = x_mm_dest * STEPS_PER_MM;
@@ -159,14 +166,13 @@ public:
     y_dest = min(Y_LIM_STEPS, max(y_dest, 0));
 
     // move 
-    move_to(x_dest,y_dest); 
-         
+    move_to(x_dest,y_dest);
   }
 
-  void parse_pen(){
+  void parse_pen(char * field1){
 
     // read argument
-    int pen_state_dest= Serial.parseInt();
+    int pen_state_dest = field1[1] - '0';
 
     if(pen_state_dest){
       raise_pen();
