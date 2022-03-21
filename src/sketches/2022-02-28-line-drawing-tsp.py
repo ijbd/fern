@@ -169,6 +169,9 @@ def get_segments(path):
 		# add pixel
 		segments[-1].append(pixel)
 
+	if len(segments[-1]) == 0:
+		segments.pop()
+		
 	return segments
 
 def get_shortened_segments(segments):
