@@ -20,9 +20,9 @@ RIGHT = 1
 DOWN = 2
 LEFT = 3
  
-def load_arr_from_img(img_file: str) -> np.ndarray:
+def load_arr_from_img(img_file: str, scale:float) -> np.ndarray:
 	image = Image.open(img_file)
-	image.thumbnail((FERN_WIDTH*PIXEL_SCALE,FERN_HEIGHT*PIXEL_SCALE))
+	image.thumbnail((int(FERN_WIDTH*PIXEL_SCALE/scale),int(FERN_HEIGHT*PIXEL_SCALE*scale)))
 	image = ImageOps.grayscale(image)
 
 	return np.asarray(image).T / 255.
@@ -287,10 +287,45 @@ def save_arr_to_img(arr: np.ndarray, output_file: str = "tmp.png") -> None:
 	
 	return None
 
-def main(img_file: str) -> int:
+def get_drawing_width_height(arr_width: int, arr_height: int, scale: float) -> tuple:
+
+	if float(arr_width) / FERN_WIDTH > float(arr_height) / FERN_HEIGHT:
+		draw_width = FERN_WIDTH * scale
+		draw_height = arr_height * FERN_WIDTH / arr_width * scale
+	else:
+		draw_width = arr_width * FERN_HEIGHT / arr_height * scale
+		draw_height = FERN_HEIGHT * scale
+
+	return int(draw_width), int(draw_height)
+
+def draw_to_fern(fern: FernArtist, path, max_x, max_y):
+	for segment in path:
+		if len(segment) > 1:
+
+			x = round(segment[0].x/float(max_x),4)
+			y = round(segment[0].y/float(max_y),4)
+			fern.pen(1)
+			fern.move(x, y)
+			fern.pen(0)
+
+			for point in segment[1:]:
+				x_next = round(point.x/float(max_x),4)
+				y_next = round(point.y/float(max_y),4)
+
+				if x_next != x or y_next != y:
+					fern.move(x_next, y_next)
+					x = x_next
+					y = y_next
+
+	return
+
+def main(img_file: str, output_file:str, scale: float, x_offset:int, y_offset:int, orientation) -> int:
 
 	# get greay scale array from image
-	arr = load_arr_from_img(img_file)
+	arr = load_arr_from_img(img_file, scale)
+
+	if orientation == "landscape":
+		arr = arr.T
 
 	# discretize borders
 	digitized_arr = digitize_by_value(arr)
@@ -308,23 +343,28 @@ def main(img_file: str) -> int:
 	# build array to track state
 	pixel_arr = build_pixel_arr(edges_arr)
 
-	# draw 
+	# find path
 	path = find_path(pixel_arr)
 
 	save_arr_to_img(extract_drawn_arr(pixel_arr),f"tmp-drawn.png")
 
-	print(path)
-
-	# save drawn result for debugging
-	drawn_arr = extract_drawn_arr(pixel_arr)
-	save_arr_to_img(drawn_arr)
+	# draw
+	draw_width, draw_height = get_drawing_width_height(arr.shape[0], arr.shape[1], scale)
 	
+	fern = FernArtist(draw_width, draw_height, output_file, x_offset, y_offset)
+
+	draw_to_fern(fern, path, arr.shape[0], arr.shape[1])
 
 	return 0
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("img_file",type=str)
+	parser.add_argument("output_file",type=str)
+	parser.add_argument("scale",type=float)
+	parser.add_argument("x_offset",type=int)
+	parser.add_argument("y_offset",type=int)
+	parser.add_argument("--orientation",type=str, default="portrait", choices=["landscape","portrait"])
 	args = parser.parse_args()
 
-	main(args.img_file)
+	main(args.img_file, args.output_file, args.scale, args.x_offset, args.y_offset, args.orientation)
