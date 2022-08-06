@@ -4,10 +4,14 @@ jobs:
   Test Control Scripts:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "NOT IMPLEMENTED"
+    - name: Checkout
+        uses: actions/checkout@v3
+    - run: echo "NOT IMPLEMENTED"
   Test Communication Scripts:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       - run: echo "NOT IMPLEMENTED"
   Test Server Scripts:
     runs-on: ubuntu-latest

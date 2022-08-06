@@ -3,8 +3,13 @@ on: [push]
 jobs:
   Compile-Latex-Docs:
     runs-on: ubuntu-latest
+    default:
+      run:
+        working-directory: docs
     steps:
-      - name:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Generate PDF
         working-directory: docs
         run: |
           for file in latex; do
