@@ -21,15 +21,6 @@ class FernWriter:
     @abstractmethod
     def send_pen_instr(self,new_pen_state):
         pass
-    
-    @staticmethod
-    def check_instruction_file(instruction_file):
-
-        if not os.path.exists(instruction_file):
-            sys.stderr.write(f"Bad filepath: {instruction_file}\n")
-            sys.exit(1)
-
-        return None
 
     def parse_instr(self, instr):
 
