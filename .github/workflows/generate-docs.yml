@@ -1,0 +1,13 @@
+name: Documentation Autogen
+on: [push]
+jobs:
+  Compile-Latex-Docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name:
+        working-directory: docs
+        run: |
+          for file in latex; do
+            pdflatex -interaction nonstopmode latex/gyro-fern.tex
+          done
+          
