@@ -3,9 +3,6 @@ on: [push]
 jobs:
   Compile-Latex-Docs:
     runs-on: ubuntu-latest
-    default:
-      run:
-        working-directory: docs
     steps:
       - name: Checkout
         uses: actions/checkout@v3
