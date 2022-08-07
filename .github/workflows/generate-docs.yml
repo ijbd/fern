@@ -1,17 +1,18 @@
 name: Documentation Autogen
-on: [push]
+on: []
 defaults:
   run:
     shell: bash
+    working-directory: docs
 jobs:
   Compile-Latex-Docs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Generate PDF
-        working-directory: docs/latex
-        run: |
-          for file in *; do
-            echo "$file"
+      - run: mkdir -p pdf
+      - run: |
+          for file in latex/*; do
+            pdflatex -interaction errorstopmode $file -output-directory ../pdf
           done
+  
           
