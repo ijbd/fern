@@ -12,6 +12,6 @@ jobs:
         working-directory: src
         run: |
           for file in *; do
-            echo "$FILE"
+            echo "$file"
           done
           
