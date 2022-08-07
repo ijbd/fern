@@ -7,13 +7,7 @@ jobs:
   Compile-Latex-Docs:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
       - name: Generate PDF
-        working-directory: docs/latex
-        run: |
-          for file in *; do
-            echo $file
-            #pdflatex -interaction nonstopmode latex/gyro-fern.tex
-          done
+        run: echo "HELLO"
           
