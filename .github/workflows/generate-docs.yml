@@ -3,7 +3,6 @@ on: [push]
 defaults:
   run:
     shell: bash
-    working-directory: docs
 jobs:
   Compile-Latex-Docs:
     runs-on: ubuntu-latest
@@ -11,8 +10,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Generate PDF
+        working-directory: docs/latex
         run: |
-          for file in latex; do
-            pdflatex -interaction nonstopmode latex/gyro-fern.tex
+          for file in *; do
+            echo $file
+            #pdflatex -interaction nonstopmode latex/gyro-fern.tex
           done
           
