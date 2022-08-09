@@ -1,5 +1,5 @@
 name: Documentation Autogen
-on: []
+on: 
 defaults:
   run:
     shell: bash
@@ -7,12 +7,13 @@ defaults:
 jobs:
   Compile-Latex-Docs:
     runs-on: ubuntu-latest
+    container: sotetsuk/pdflatex
     steps:
       - uses: actions/checkout@v3
       - run: mkdir -p pdf
       - run: |
           for file in latex/*; do
-            pdflatex -interaction errorstopmode $file -output-directory ../pdf
+            pdflatex -interaction batchmode $file -output-directory ../pdf
           done
   
           
