@@ -10,18 +10,20 @@ jobs:
       - name: checkout-code
         uses: actions/checkout@v3
       - name: create-output-directory
-        run: mkdir -p pdf
+        run: mkdir -p docs/pdf
       - name: compile-latex
         uses: xu-cheng/latex-action@v2
         with:
           root_file: "*.tex"
           glob_root_file: true
           working_directory: docs/latex
+      - name: move-files-to-output
+        run: mv docs/latex/*.pdf docs/pdf
       - name: upload-pdf
         uses: actions/upload-artifact@v2
         with:
-          name: docs/latex/gyro-fern.pdf
-          path: docs/pdf/gyro-fern.pdf
+          name: docs/pdf
+          path: docs/pdf
       
   
           
