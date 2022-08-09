@@ -2,7 +2,7 @@ name: Documentation Autogen
 on:
   push:
     paths:
-      - docs/latex
+      - "docs/latex/*"
 defaults:
   run:
     shell: bash
