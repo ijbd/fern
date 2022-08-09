@@ -1,9 +1,11 @@
 name: Documentation Autogen
-on: push
+on:
+  push:
+    paths:
+      - docs/latex
 defaults:
   run:
     shell: bash
-    working-directory: docs
 jobs:
   Compile-Latex-Docs:
     runs-on: ubuntu-latest
@@ -13,9 +15,11 @@ jobs:
       - name: create-output-directory
         run: mkdir -p pdf
       - name: compile-latex
-        uses: closoco/pdflatex-action@v1.0.0
+        uses: xu-cheng/latex-action@v2
         with:
-          texFile: latex/gyro-fern.tex
+          root_file: "*.tex"
+          glob_root_file: true
+          working-directory: docs/latex
       - name: upload-pdf
         uses: actions/upload-artifact@v2
         with:
