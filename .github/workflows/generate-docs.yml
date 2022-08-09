@@ -15,12 +15,12 @@ jobs:
       - name: compile-latex
         uses: closoco/pdflatex-action@v1.0.0
         with:
-          texFile: latex/*
+          texFile: latex/gyro-fern.tex
       - name: upload-pdf
         uses: actions/upload-artifact@v2
         with:
-          name: pdf
-          path: pdf
+          name: gyro-fern.pdf
+          path: pdf/gyro-fern.pdf
       
   
           
