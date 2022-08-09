@@ -1,8 +1,5 @@
 name: Documentation Autogen
-on:
-  push:
-    paths:
-      - "docs/latex/*"
+on: push
 defaults:
   run:
     shell: bash
@@ -19,12 +16,12 @@ jobs:
         with:
           root_file: "*.tex"
           glob_root_file: true
-          working-directory: docs/latex
+          working_directory: docs/latex
       - name: upload-pdf
         uses: actions/upload-artifact@v2
         with:
-          name: gyro-fern.pdf
-          path: pdf/gyro-fern.pdf
+          name: docs/latex/gyro-fern.pdf
+          path: docs/pdf/gyro-fern.pdf
       
   
           
