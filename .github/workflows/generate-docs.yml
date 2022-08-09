@@ -1,5 +1,5 @@
 name: Documentation Autogen
-on: 
+on: push
 defaults:
   run:
     shell: bash
