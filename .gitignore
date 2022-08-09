@@ -2,5 +2,11 @@ prints/
 images/
 src/__pycache__/
 src/tmp.svg
+src/sketches/
+src/main_osc/
 *tmp*
 archive/
+server/
+**.log
+**.aux
+
