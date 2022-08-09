@@ -7,13 +7,20 @@ defaults:
 jobs:
   Compile-Latex-Docs:
     runs-on: ubuntu-latest
-    container: sotetsuk/pdflatex
     steps:
-      - uses: actions/checkout@v3
-      - run: mkdir -p pdf
-      - run: |
-          for file in latex/*; do
-            pdflatex -interaction batchmode $file -output-directory ../pdf
-          done
+      - name: checkout-code
+        uses: actions/checkout@v3
+      - name: create-output-directory
+        run: mkdir -p pdf
+      - name: compile-latex
+        uses: closoco/pdflatex-action@v1.0.0
+        with:
+          texFile: latex/*
+      - name: upload-pdf
+        uses: actions/upload-artifact@v2
+        with:
+          name: pdf
+          path: pdf
+      
   
           
