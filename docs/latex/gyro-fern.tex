@@ -6,50 +6,64 @@
 \title{Supporting Documentation for a Gyroscopic Fern}
 \author{ijbd}
 \begin{document}
-	The goal of this iteration is to induce a new sense of wonder and curiosity in observers, 
-	not just in the art that is produced (if my art can ever have that effect), but in the fundamental mechanics that drive Fern.
-	With enough development, my hope is that people will scratch their heads to understand exactly how this machine moves.
 
-	To accomplish our goal, we will replace the stacked linear axes with a pair of rotating arms (\ref{fig:high-level-concept}).
-	We will put a motor on the end of each arm with a weighted ring to provide inertia.
-	By changing the speed of the motor, we will change the angular momentum of the spinning rings,
-	and, to conserve angular momentum, the arms will begin to rotate. 
+	\section{Introduction}
 
+	The goal of this iteration is to replace the stacked linear axes with a pair of rotating arms (figure \ref{fig:high-level-concept}). 
+	This document serves as theoretical foundation and proof-of-concept for this idea.
+	
 	\begin{figure}[h!]
    		\includegraphics[width=\linewidth]{../diagrams/fern-v3-concept-diagram.png}   
 		\caption{Birds-eye concept drawing of a gyroscopic fern.}
 		\label{fig:high-level-concept}
 	\end{figure}
 
-	This document serves as theoretical foundation and proof-of-concept for this idea.
-	To begin, we'll consider the case of a single arm.
-	We'll assume the motor and supporting arms are massless.
-	Let us start with the system at rest. The angular momentum is zero. 
-	Suppose we begin spinning the motor such that the angular rotation about the rotor axis is $\omega$.
-	We want to know what the resulting motion of the arm will be. 
-	The conservation of angular momentum says that the change in angular momentum of a system (lacking any external torques)
-	is zero. Therefore, we can express the rotational velocity of the arm as a function of the [change in] speed of the motor by equating
-	the [change in] angular momentum of the motor with the angular momentum of the arm.
+	\section{Setup}
 
-	First, we'll express the angular momentum of the spinning ring.
+	To start, consider a single arm (figure \ref{fig:high-level-one-arm}). It has a motor on one end and an ambiguous mass on the other
+	(e.g. a pen or another arm). 
+
+	\begin{figure}[h!]
+		\includegraphics[width=\linewidth]{../diagrams/fern-v3-single-arm-diagram.png}   
+	 	\caption{Body diagram for one arm.}
+	 	\label{fig:high-level-one-arm}
+ 	\end{figure}
+
+	Assume the motor and supporting rod are massless.
+	With the system at rest, the angular momentum is zero. 
+	Suppose the motor begins to spin such that the angular rotation about the rotor axis is $\omega$.
+	We want to predict the resulting arm motion.
+	The conservation of angular momentum says that the change in angular momentum of a system (lacking an external torques)
+	is zero. 
+	To express the rotational velocity of the arm as a function of motor speed,
+	we can equate the angular momentum of the motor with the angular momentum of the arm.
+
+
+	\section{Calculation}
+	\subsection{Angular Momentum from the Spinning Ring}
 
 	By definition...
 	\begin{align}
 		L &= \vec{r} \times\vec{p}
-	\end{align}
-
-	Therefore..
-	\begin{align}
-		L &= \vec{r} \times m \vec{v} \\
-		 &= \int_m\vec{r}\times\vec{v} dm \\
-		 &= \int_{\theta}\vec{r}\times\rho\vec{v} d\theta
+	 	&= \vec{r} \times m \vec{v} \\
+		&= \int_m\vec{r}\times\vec{v} dm \\
+		&= \int_{\theta}\vec{r}\times\rho\vec{v} d\theta
 	\end{align}
 
 	Where...
 	\begin{align}
 		\rho &= \frac{m_1}{2\pi}
 	\end{align}
-	And...
+
+	The components of this integral are shown in figure \ref{fig:one-arm-integral}
+
+	\begin{figure}[h!]
+		\includegraphics[width=\linewidth]{../diagrams/fern-v3-single-arm-integral-diagram.png}   
+	 	\caption{Components of angular momentum integration.}
+	 	\label{fig:one-arm-integral}
+ 	\end{figure}
+
+	Continuing...
 	\begin{align}
 		L &= \rho\int_0^{2\pi}|\vec{r}(\theta)||\vec{v}|sin(\phi(\theta))d\theta
 	\end{align}
@@ -59,18 +73,24 @@
 		\phi &= \angle\vec{v} - \angle\vec{r}
 	\end{align}
 
-	Solving for the needed quanitities...
+	Solving for the needed quanitities (figure \ref{fig:one-arm-integral-angles})
 	\begin{align}
 		|\vec{r}(\theta)| &= \sqrt{R_1^2 + d_1^2 -2R_1d_1cos(\theta)} \\
 		|\vec{v}| &= \omega r\\
 		\phi(\theta) &= \frac{\pi}{2}-\theta-\alpha(\theta)
 	\end{align}
-
+	
 	Where...
 	\begin{align}
 		\alpha &= \angle\vec{r}\\
 		 &= sin^{-1}(\frac{R_1sin(\theta)}{|\vec{r}(\theta)|})
 	\end{align}
+
+	\begin{figure}[h!]
+		\includegraphics[width=\linewidth]{../diagrams/fern-v3-single-arm-angles-diagram.png}   
+	 	\caption{Components of angular momentum integration.}
+	 	\label{fig:one-arm-integral-angles}
+ 	\end{figure}
 
 	Continuing...
 	\begin{align}
