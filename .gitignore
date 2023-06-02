@@ -9,4 +9,5 @@ archive/
 server/
 **.log
 **.aux
+kicad/
 
